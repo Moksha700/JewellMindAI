@@ -1,0 +1,6 @@
+{
+  "name": "JewelMind AI",
+  "description": "Your AI for perfect jewellery. Style quiz, occasion filters, and virtual try-on for individuals, gift-givers, and jewellery businesses.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

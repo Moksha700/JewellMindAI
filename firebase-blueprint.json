@@ -1,0 +1,151 @@
+{
+  "entities": {
+    "Profile": {
+      "title": "Profile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique user identifier matching auth.uid",
+          "maxLength": 128
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address",
+          "maxLength": 256
+        },
+        "firstName": {
+          "type": "string",
+          "description": "User first name",
+          "maxLength": 100
+        },
+        "lastName": {
+          "type": "string",
+          "description": "User last name",
+          "maxLength": 100
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last updated timestamp"
+        }
+      },
+      "required": ["id", "email", "firstName"]
+    },
+    "UserRole": {
+      "title": "UserRole",
+      "description": "Security roles table for RBAC",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "User ID reference",
+          "maxLength": 128
+        },
+        "role": {
+          "type": "string",
+          "description": "Role assigned to the user",
+          "enum": ["user", "admin"],
+          "maxLength": 32
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["userId", "role"]
+    },
+    "JewelleryRecord": {
+      "title": "JewelleryRecord",
+      "description": "User jewellery recommendations, quizzes, try-ons, and saved favorites",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Record document ID",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "User ID owning this record",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Title or item name",
+          "maxLength": 200
+        },
+        "category": {
+          "type": "string",
+          "description": "Category or capability type",
+          "enum": ["Style Quiz", "Occasion Match", "Virtual Try-On", "Recommendation Engine", "Saved Favorites"],
+          "maxLength": 64
+        },
+        "occasion": {
+          "type": "string",
+          "description": "Target occasion",
+          "maxLength": 100
+        },
+        "metalType": {
+          "type": "string",
+          "description": "Metal preference",
+          "maxLength": 64
+        },
+        "gemstone": {
+          "type": "string",
+          "description": "Gemstone or diamond type",
+          "maxLength": 64
+        },
+        "notes": {
+          "type": "string",
+          "description": "Styling notes or AI insights",
+          "maxLength": 2000
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the record",
+          "enum": ["saved", "completed", "draft"],
+          "maxLength": 32
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last updated timestamp"
+        }
+      },
+      "required": ["id", "userId", "title", "category", "status"]
+    }
+  },
+  "firestore": {
+    "/profiles/{userId}": {
+      "schema": {
+        "$ref": "Profile"
+      },
+      "description": "User profile collection keyed by user uid"
+    },
+    "/user_roles/{userId}": {
+      "schema": {
+        "$ref": "UserRole"
+      },
+      "description": "Security roles table for role-based authorization"
+    },
+    "/jewellery_records/{recordId}": {
+      "schema": {
+        "$ref": "JewelleryRecord"
+      },
+      "description": "User records for styling, quiz outcomes, try-ons, and saved favorites"
+    }
+  }
+}
