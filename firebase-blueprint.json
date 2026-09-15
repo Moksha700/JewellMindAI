@@ -126,9 +126,26 @@
         }
       },
       "required": ["id", "userId", "title", "category", "status"]
+    },
+    "TestConnection": {
+      "title": "TestConnection",
+      "description": "Health check test connection ping",
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "description": "Connection status"
+        }
+      }
     }
   },
   "firestore": {
+    "/test/{testId}": {
+      "schema": {
+        "$ref": "TestConnection"
+      },
+      "description": "Health check document for connection verification"
+    },
     "/profiles/{userId}": {
       "schema": {
         "$ref": "Profile"

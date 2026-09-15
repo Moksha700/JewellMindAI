@@ -1,12 +1,27 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  initializeFirestore, 
+  doc, 
+  getDocFromServer,
+  Firestore 
+} from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 /* CRITICAL: The app will break without this line */
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db: Firestore = (() => {
+  try {
+    return initializeFirestore(app, {
+      experimentalForceLongPolling: true,
+    }, firebaseConfig.firestoreDatabaseId);
+  } catch {
+    return getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  }
+})();
+
 export const auth = getAuth(app);
 
 export enum OperationType {
@@ -61,10 +76,18 @@ export async function testConnection(): Promise<void> {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('Firebase configuration notice: the client is currently offline or unreachable.');
+    if (error instanceof Error) {
+      const code = (error as { code?: string }).code;
+      if (error.message.includes('the client is offline') || code === 'unavailable') {
+        console.warn('Firebase configuration notice: the client is currently offline or unreachable.');
+      } else if (code === 'permission-denied') {
+        // Connection reached backend successfully (gated by rules)
+      } else {
+        console.warn('Firebase connection check:', error.message);
+      }
     }
   }
 }
 
-testConnection();
+// Safely initiate health check
+testConnection().catch(() => {});

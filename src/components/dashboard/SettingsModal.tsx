@@ -26,12 +26,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
 
     setSaving(true);
     try {
-      const profRef = doc(db, 'profiles', user.uid);
-      await updateDoc(profRef, {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        updatedAt: new Date().toISOString(),
-      });
+      const { auth } = await import('../../lib/firebase');
+      if (auth.currentUser) {
+        const profRef = doc(db, 'profiles', user.uid);
+        await updateDoc(profRef, {
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          updatedAt: new Date().toISOString(),
+        });
+      } else {
+        const storedRaw = localStorage.getItem('jewelmind_auth_session');
+        if (storedRaw) {
+          const stored = JSON.parse(storedRaw);
+          if (stored.profile) {
+            stored.profile.firstName = firstName.trim();
+            stored.profile.lastName = lastName.trim();
+            stored.profile.updatedAt = new Date().toISOString();
+            localStorage.setItem('jewelmind_auth_session', JSON.stringify(stored));
+          }
+        }
+      }
       await refreshProfile();
       showToast('Profile updated successfully!', 'success');
       onClose();

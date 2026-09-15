@@ -3,7 +3,6 @@ import {
   query, 
   where, 
   getDocs, 
-  addDoc, 
   deleteDoc, 
   updateDoc, 
   doc, 
@@ -15,7 +14,42 @@ import { JewelleryRecordDoc, RecordCategory, RecordStatus } from '../types';
 
 const COLLECTION_NAME = 'jewellery_records';
 
+function getActiveUserId(): string | null {
+  if (auth.currentUser) return auth.currentUser.uid;
+  try {
+    const raw = localStorage.getItem('jewelmind_auth_session');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.uid) return parsed.uid;
+    }
+  } catch {}
+  return null;
+}
+
+function getLocalRecords(userId: string): JewelleryRecordDoc[] {
+  try {
+    const raw = localStorage.getItem(`jewelmind_records_${userId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalRecords(userId: string, records: JewelleryRecordDoc[]): void {
+  try {
+    localStorage.setItem(`jewelmind_records_${userId}`, JSON.stringify(records));
+    window.dispatchEvent(new CustomEvent('jewelmind_records_changed', { detail: { userId } }));
+  } catch (e) {
+    console.warn('Failed to save local records', e);
+  }
+}
+
 export async function fetchUserRecords(userId: string): Promise<JewelleryRecordDoc[]> {
+  if (!auth.currentUser) {
+    const local = getLocalRecords(userId);
+    return local.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  }
+
   try {
     const q = query(
       collection(db, COLLECTION_NAME),
@@ -51,6 +85,22 @@ export function subscribeToUserRecords(
   onUpdate: (records: JewelleryRecordDoc[]) => void,
   onError?: (err: unknown) => void
 ) {
+  if (!auth.currentUser) {
+    onUpdate(getLocalRecords(userId));
+    const handleStorageChange = (e: Event) => {
+      const customEvt = e as CustomEvent<{ userId?: string }>;
+      if (!customEvt.detail || customEvt.detail.userId === userId) {
+        onUpdate(getLocalRecords(userId));
+      }
+    };
+    window.addEventListener('jewelmind_records_changed', handleStorageChange);
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('jewelmind_records_changed', handleStorageChange);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }
+
   const q = query(
     collection(db, COLLECTION_NAME),
     where('userId', '==', userId)
@@ -85,8 +135,8 @@ export async function createJewelleryRecord(record: {
   imageUrl?: string;
   priceEstimate?: string;
 }): Promise<string> {
-  const currentUser = auth.currentUser;
-  if (!currentUser) throw new Error('User must be authenticated to create a record');
+  const currentUid = getActiveUserId();
+  if (!currentUid) throw new Error('User must be authenticated to create a record');
 
   const now = new Date().toISOString();
   // Generate valid ID
@@ -94,7 +144,7 @@ export async function createJewelleryRecord(record: {
 
   const payload: JewelleryRecordDoc = {
     id: newId,
-    userId: currentUser.uid,
+    userId: currentUid,
     title: record.title.slice(0, 200),
     category: record.category,
     status: record.status,
@@ -108,6 +158,12 @@ export async function createJewelleryRecord(record: {
     updatedAt: now,
   };
 
+  if (!auth.currentUser) {
+    const existing = getLocalRecords(currentUid);
+    saveLocalRecords(currentUid, [payload, ...existing]);
+    return newId;
+  }
+
   try {
     const docRef = doc(db, COLLECTION_NAME, newId);
     const { setDoc } = await import('firebase/firestore');
@@ -119,8 +175,15 @@ export async function createJewelleryRecord(record: {
 }
 
 export async function updateJewelleryRecordNotes(recordId: string, notes: string): Promise<void> {
-  const currentUser = auth.currentUser;
-  if (!currentUser) throw new Error('User must be authenticated to update record');
+  const currentUid = getActiveUserId();
+  if (!currentUid) throw new Error('User must be authenticated to update record');
+
+  if (!auth.currentUser) {
+    const records = getLocalRecords(currentUid);
+    const updated = records.map(r => r.id === recordId ? { ...r, notes: notes.slice(0, 2000), updatedAt: new Date().toISOString() } : r);
+    saveLocalRecords(currentUid, updated);
+    return;
+  }
 
   try {
     const docRef = doc(db, COLLECTION_NAME, recordId);
@@ -134,8 +197,15 @@ export async function updateJewelleryRecordNotes(recordId: string, notes: string
 }
 
 export async function deleteJewelleryRecord(recordId: string): Promise<void> {
-  const currentUser = auth.currentUser;
-  if (!currentUser) throw new Error('User must be authenticated to delete record');
+  const currentUid = getActiveUserId();
+  if (!currentUid) throw new Error('User must be authenticated to delete record');
+
+  if (!auth.currentUser) {
+    const records = getLocalRecords(currentUid);
+    const filtered = records.filter(r => r.id !== recordId);
+    saveLocalRecords(currentUid, filtered);
+    return;
+  }
 
   try {
     const docRef = doc(db, COLLECTION_NAME, recordId);
