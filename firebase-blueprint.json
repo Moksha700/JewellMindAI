@@ -137,6 +137,138 @@
           "description": "Connection status"
         }
       }
+    },
+    "StyleQuiz": {
+      "title": "StyleQuiz",
+      "description": "User style quiz assessments and jewellery aesthetic profiles",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique quiz document identifier",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID referencing auth.uid",
+          "maxLength": 128
+        },
+        "user_id": {
+          "type": "string",
+          "description": "Owner user ID matching auth.uid",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the Style Quiz",
+          "maxLength": 200
+        },
+        "payload": {
+          "type": "object",
+          "description": "Quiz answers, preferences, metal selections, and notes"
+        },
+        "status": {
+          "type": "string",
+          "description": "Current status of the quiz",
+          "enum": ["draft", "completed", "archived"],
+          "maxLength": 32
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last updated timestamp"
+        }
+      },
+      "required": ["id", "title", "status"]
+    },
+    "ContactMessage": {
+      "title": "ContactMessage",
+      "description": "Inquiries and contact messages submitted by prospective clients and users",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique UUID or identifier",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "description": "Sender full name",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Sender email address",
+          "maxLength": 120
+        },
+        "message": {
+          "type": "string",
+          "description": "Message or inquiry content",
+          "minLength": 10,
+          "maxLength": 2000
+        },
+        "source": {
+          "type": "string",
+          "description": "Submission source",
+          "maxLength": 100
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["id", "name", "email", "message"]
+    },
+    "AiRun": {
+      "title": "AiRun",
+      "description": "Historical AI run executions executed by the user",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Run UUID or identifier",
+          "maxLength": 128
+        },
+        "user_id": {
+          "type": "string",
+          "description": "Owner user ID",
+          "maxLength": 128
+        },
+        "prompt": {
+          "type": "string",
+          "description": "User prompt sent to AI Gateway",
+          "maxLength": 5000
+        },
+        "response": {
+          "type": "string",
+          "description": "Generated AI response",
+          "maxLength": 20000
+        },
+        "model": {
+          "type": "string",
+          "description": "Model used, e.g. google/gemini-2.5-flash",
+          "maxLength": 100
+        },
+        "capability": {
+          "type": "string",
+          "description": "AI capability category",
+          "maxLength": 64
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["id", "user_id", "prompt", "response", "model"]
     }
   },
   "firestore": {
@@ -163,6 +295,24 @@
         "$ref": "JewelleryRecord"
       },
       "description": "User records for styling, quiz outcomes, try-ons, and saved favorites"
+    },
+    "/style_quiz/{quizId}": {
+      "schema": {
+        "$ref": "StyleQuiz"
+      },
+      "description": "User style quiz assessments"
+    },
+    "/contact_messages/{messageId}": {
+      "schema": {
+        "$ref": "ContactMessage"
+      },
+      "description": "Public and authenticated client inquiry messages"
+    },
+    "/ai_runs/{runId}": {
+      "schema": {
+        "$ref": "AiRun"
+      },
+      "description": "Historical AI runs scoped to the authenticated owner"
     }
   }
 }

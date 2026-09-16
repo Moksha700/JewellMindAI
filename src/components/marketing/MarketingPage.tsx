@@ -17,6 +17,7 @@ import {
   Store,
   ExternalLink
 } from 'lucide-react';
+import { ContactForm } from '../contact/ContactForm';
 
 interface MarketingPageProps {
   onNavigateAuth: (tab: 'signin' | 'signup') => void;
@@ -87,6 +88,12 @@ export const MarketingPage: React.FC<MarketingPageProps> = ({
               className="hover:text-[#1A1715] transition-colors py-1 focus:outline-none focus:text-[#1A1715]"
             >
               FAQ
+            </a>
+            <a 
+              href="#contact" 
+              className="hover:text-[#1A1715] transition-colors py-1 focus:outline-none focus:text-[#1A1715]"
+            >
+              Contact
             </a>
           </div>
 
@@ -808,6 +815,13 @@ export const MarketingPage: React.FC<MarketingPageProps> = ({
 
             </div>
 
+          </div>
+        </section>
+
+        {/* 6. CONTACT CONCIERGE FORM SECTION */}
+        <section id="contact" className="py-20 bg-[#F4EFE6] border-t border-[#E8E2D5]">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <ContactForm source="marketing_landing_page" />
           </div>
         </section>
 

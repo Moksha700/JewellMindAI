@@ -57,3 +57,94 @@ export interface JewelleryCatalogItem {
   imageUrl: string;
   tryOnType: 'neck' | 'finger' | 'ear' | 'wrist';
 }
+
+// ============================================================================
+// Cloud Database Entity Types (matching public schema tables)
+// ============================================================================
+
+export type AppRole = 'admin' | 'user';
+
+export interface DbProfile {
+  id: string; // uuid -> auth.users
+  full_name: string | null;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbUserRole {
+  id: string; // uuid
+  user_id: string; // uuid -> auth.users
+  role: AppRole;
+  created_at: string;
+}
+
+export interface DbStyleQuiz {
+  id: string; // uuid
+  user_id: string; // uuid -> auth.users
+  title: string;
+  payload: Record<string, any>;
+  status: 'draft' | 'completed' | 'archived';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbOccasionFilter {
+  id: string; // uuid
+  user_id: string; // uuid -> auth.users
+  occasion_name: string;
+  dress_code?: string | null;
+  budget_min?: number | null;
+  budget_max?: number | null;
+  metal_preferences: string[];
+  gemstone_preferences: string[];
+  payload: Record<string, any>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbVirtualTryOn {
+  id: string; // uuid
+  user_id: string; // uuid -> auth.users
+  item_name: string;
+  category: string;
+  try_on_type: 'neck' | 'finger' | 'ear' | 'wrist';
+  source_image_url?: string | null;
+  rendered_image_url?: string | null;
+  calibration_data: Record<string, any>;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbRecommendationEngine {
+  id: string; // uuid
+  user_id: string; // uuid -> auth.users
+  title: string;
+  jewellery_item_id?: string | null;
+  category: string;
+  match_score?: number | null;
+  ai_reasoning?: string | null;
+  attributes: Record<string, any>;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbSavedFavorite {
+  id: string; // uuid
+  user_id: string; // uuid -> auth.users
+  item_id: string;
+  item_title: string;
+  category: string;
+  metal_type?: string | null;
+  gemstone?: string | null;
+  price_estimate?: number | null;
+  image_url?: string | null;
+  notes?: string | null;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+

@@ -64,6 +64,27 @@ service cloud.firestore {
              (!('gemstone' in data) || (data.gemstone is string && data.gemstone.size() <= 64));
     }
 
+    function isValidStyleQuiz(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.title is string && data.title.size() <= 200 &&
+             data.status in ['draft', 'completed', 'archived'] &&
+             (('user_id' in data && data.user_id is string && data.user_id.size() <= 128) ||
+              ('userId' in data && data.userId is string && data.userId.size() <= 128));
+    }
+
+    function isStyleQuizOwner(data) {
+      return ('user_id' in data && data.user_id == request.auth.uid) ||
+             ('userId' in data && data.userId == request.auth.uid);
+    }
+
+    function isValidContactMessage(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.name is string && data.name.size() >= 2 && data.name.size() <= 80 &&
+             data.email is string && data.email.size() >= 5 && data.email.size() <= 120 &&
+             data.message is string && data.message.size() >= 10 && data.message.size() <= 2000 &&
+             (!('source' in data) || (data.source is string && data.source.size() <= 100));
+    }
+
     // Profiles Collection
     match /profiles/{userId} {
       allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
@@ -90,6 +111,43 @@ service cloud.firestore {
       allow create: if isSignedIn() && isValidId(recordId) && incoming().userId == request.auth.uid && isValidJewelleryRecord(incoming());
       allow update: if isSignedIn() && resource.data.userId == request.auth.uid && incoming().userId == existing().userId && isValidJewelleryRecord(incoming());
       allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Style Quiz Collection (Public schema entity with RLS user_id = auth.uid())
+    match /style_quiz/{quizId} {
+      allow get: if isSignedIn() && (isStyleQuizOwner(resource.data) || isAdmin());
+      allow list: if isSignedIn() && (isStyleQuizOwner(resource.data) || isAdmin());
+      allow create: if isSignedIn() && isValidId(quizId) && isStyleQuizOwner(incoming()) && isValidStyleQuiz(incoming());
+      allow update: if isSignedIn() && isStyleQuizOwner(resource.data) && isStyleQuizOwner(incoming()) && isValidStyleQuiz(incoming());
+      allow delete: if isSignedIn() && (isStyleQuizOwner(resource.data) || isAdmin());
+    }
+
+    // Contact Messages Collection
+    // Allow INSERT to anon + authenticated (WITH CHECK true); Allow SELECT, UPDATE, DELETE only to admins via has_role('admin')
+    match /contact_messages/{messageId} {
+      allow create: if isValidId(messageId) && isValidContactMessage(incoming());
+      allow get: if isSignedIn() && isAdmin();
+      allow list: if isSignedIn() && isAdmin();
+      allow update: if isSignedIn() && isAdmin() && isValidContactMessage(incoming());
+      allow delete: if isSignedIn() && isAdmin();
+    }
+
+    function isValidAiRun(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.user_id is string && data.user_id == request.auth.uid &&
+             data.prompt is string && data.prompt.size() <= 5000 &&
+             data.response is string && data.response.size() <= 30000 &&
+             data.model is string && data.model.size() <= 100 &&
+             (!('status' in data) || (data.status is string && data.status.size() <= 30));
+    }
+
+    // AI Runs Collection (RLS scoped to owner)
+    match /ai_runs/{runId} {
+      allow get: if isSignedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidId(runId) && incoming().user_id == request.auth.uid && isValidAiRun(incoming());
+      allow update: if isSignedIn() && resource.data.user_id == request.auth.uid && incoming().user_id == request.auth.uid && isValidAiRun(incoming());
+      allow delete: if isSignedIn() && (resource.data.user_id == request.auth.uid || isAdmin());
     }
   }
 }

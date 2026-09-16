@@ -2,7 +2,6 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { 
   getFirestore, 
-  initializeFirestore, 
   doc, 
   getDocFromServer,
   Firestore 
@@ -12,15 +11,7 @@ import firebaseConfig from '../../firebase-applet-config.json';
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 /* CRITICAL: The app will break without this line */
-export const db: Firestore = (() => {
-  try {
-    return initializeFirestore(app, {
-      experimentalForceLongPolling: true,
-    }, firebaseConfig.firestoreDatabaseId);
-  } catch {
-    return getFirestore(app, firebaseConfig.firestoreDatabaseId);
-  }
-})();
+export const db: Firestore = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 export const auth = getAuth(app);
 

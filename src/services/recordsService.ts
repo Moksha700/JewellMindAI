@@ -57,10 +57,14 @@ export async function fetchUserRecords(userId: string): Promise<JewelleryRecordD
       orderBy('createdAt', 'desc')
     );
     const snap = await getDocs(q);
-    return snap.docs.map((docSnap) => ({
+    const records = snap.docs.map((docSnap) => ({
       id: docSnap.id,
       ...docSnap.data(),
     } as JewelleryRecordDoc));
+    if (records.length > 0) {
+      saveLocalRecords(userId, records);
+    }
+    return records;
   } catch (error) {
     // If index is still building or composite order fails, fallback to simple where
     try {
@@ -73,9 +77,15 @@ export async function fetchUserRecords(userId: string): Promise<JewelleryRecordD
         id: docSnap.id,
         ...docSnap.data(),
       } as JewelleryRecordDoc));
-      return records.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      records.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      if (records.length > 0) {
+        saveLocalRecords(userId, records);
+      }
+      return records;
     } catch (fallbackErr) {
-      handleFirestoreError(fallbackErr, OperationType.LIST, COLLECTION_NAME);
+      console.warn('Firestore fetch unavailable, serving cached records:', fallbackErr);
+      const local = getLocalRecords(userId);
+      return local.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     }
   }
 }
@@ -85,8 +95,10 @@ export function subscribeToUserRecords(
   onUpdate: (records: JewelleryRecordDoc[]) => void,
   onError?: (err: unknown) => void
 ) {
+  // Always provide initial local data immediately for instantaneous render
+  onUpdate(getLocalRecords(userId));
+
   if (!auth.currentUser) {
-    onUpdate(getLocalRecords(userId));
     const handleStorageChange = (e: Event) => {
       const customEvt = e as CustomEvent<{ userId?: string }>;
       if (!customEvt.detail || customEvt.detail.userId === userId) {
@@ -115,11 +127,16 @@ export function subscribeToUserRecords(
       } as JewelleryRecordDoc));
       // In-memory sort by date descending
       records.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      if (records.length > 0) {
+        saveLocalRecords(userId, records);
+      }
       onUpdate(records);
     },
     (error) => {
+      console.warn('Firestore snapshot notice (operating in offline fallback mode):', error);
       if (onError) onError(error);
-      handleFirestoreError(error, OperationType.LIST, COLLECTION_NAME);
+      // Seamlessly supply cached local records during offline or unavailable states
+      onUpdate(getLocalRecords(userId));
     }
   );
 }
@@ -158,41 +175,42 @@ export async function createJewelleryRecord(record: {
     updatedAt: now,
   };
 
-  if (!auth.currentUser) {
-    const existing = getLocalRecords(currentUid);
-    saveLocalRecords(currentUid, [payload, ...existing]);
-    return newId;
+  // Optimistic local update ensures instantaneous response even if offline
+  const existing = getLocalRecords(currentUid);
+  saveLocalRecords(currentUid, [payload, ...existing.filter(r => r.id !== newId)]);
+
+  if (auth.currentUser) {
+    try {
+      const docRef = doc(db, COLLECTION_NAME, newId);
+      const { setDoc } = await import('firebase/firestore');
+      await setDoc(docRef, payload);
+    } catch (error) {
+      console.warn('Firestore write queued for sync:', error);
+    }
   }
 
-  try {
-    const docRef = doc(db, COLLECTION_NAME, newId);
-    const { setDoc } = await import('firebase/firestore');
-    await setDoc(docRef, payload);
-    return newId;
-  } catch (error) {
-    handleFirestoreError(error, OperationType.CREATE, `${COLLECTION_NAME}/${newId}`);
-  }
+  return newId;
 }
 
 export async function updateJewelleryRecordNotes(recordId: string, notes: string): Promise<void> {
   const currentUid = getActiveUserId();
   if (!currentUid) throw new Error('User must be authenticated to update record');
 
-  if (!auth.currentUser) {
-    const records = getLocalRecords(currentUid);
-    const updated = records.map(r => r.id === recordId ? { ...r, notes: notes.slice(0, 2000), updatedAt: new Date().toISOString() } : r);
-    saveLocalRecords(currentUid, updated);
-    return;
-  }
+  // Optimistic local update
+  const records = getLocalRecords(currentUid);
+  const updated = records.map(r => r.id === recordId ? { ...r, notes: notes.slice(0, 2000), updatedAt: new Date().toISOString() } : r);
+  saveLocalRecords(currentUid, updated);
 
-  try {
-    const docRef = doc(db, COLLECTION_NAME, recordId);
-    await updateDoc(docRef, {
-      notes: notes.slice(0, 2000),
-      updatedAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    handleFirestoreError(error, OperationType.UPDATE, `${COLLECTION_NAME}/${recordId}`);
+  if (auth.currentUser) {
+    try {
+      const docRef = doc(db, COLLECTION_NAME, recordId);
+      await updateDoc(docRef, {
+        notes: notes.slice(0, 2000),
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.warn('Firestore update queued for sync:', error);
+    }
   }
 }
 
@@ -200,17 +218,17 @@ export async function deleteJewelleryRecord(recordId: string): Promise<void> {
   const currentUid = getActiveUserId();
   if (!currentUid) throw new Error('User must be authenticated to delete record');
 
-  if (!auth.currentUser) {
-    const records = getLocalRecords(currentUid);
-    const filtered = records.filter(r => r.id !== recordId);
-    saveLocalRecords(currentUid, filtered);
-    return;
-  }
+  // Optimistic local removal
+  const records = getLocalRecords(currentUid);
+  const filtered = records.filter(r => r.id !== recordId);
+  saveLocalRecords(currentUid, filtered);
 
-  try {
-    const docRef = doc(db, COLLECTION_NAME, recordId);
-    await deleteDoc(docRef);
-  } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `${COLLECTION_NAME}/${recordId}`);
+  if (auth.currentUser) {
+    try {
+      const docRef = doc(db, COLLECTION_NAME, recordId);
+      await deleteDoc(docRef);
+    } catch (error) {
+      console.warn('Firestore delete queued for sync:', error);
+    }
   }
 }

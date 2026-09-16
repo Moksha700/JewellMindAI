@@ -4,12 +4,22 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { MarketingPage } from './components/marketing/MarketingPage';
 import { AuthPage } from './components/auth/AuthPage';
 import { DashboardShell } from './components/dashboard/DashboardShell';
 import { Loader2 } from 'lucide-react';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 type Route = 'home' | 'auth' | 'dashboard';
 
@@ -117,10 +127,12 @@ const AppContent: React.FC = () => {
 
 export default function App() {
   return (
-    <ToastProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </ToastProvider>
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ToastProvider>
+    </QueryClientProvider>
   );
 }

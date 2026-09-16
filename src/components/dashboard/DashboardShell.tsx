@@ -17,26 +17,39 @@ import {
   ChevronDown, 
   ShieldCheck, 
   User,
-  Plus
+  Plus,
+  MessageSquare,
+  History
 } from 'lucide-react';
 import { DashboardOverview } from './DashboardOverview';
 import { OccasionFiltersView } from './OccasionFiltersView';
 import { VirtualTryOnStudio } from './VirtualTryOnStudio';
 import { RecommendationEngineView } from './RecommendationEngineView';
 import { StyleQuizModal } from './StyleQuizModal';
+import { StyleQuizManager } from '../style-quiz/StyleQuizManager';
+import { HeroAiStudio } from '../ai/HeroAiStudio';
+import { AiHistoryPage } from '../history/AiHistoryPage';
+import { ContactModal } from '../contact/ContactModal';
 import { SettingsModal } from './SettingsModal';
 import { RecordDetailsModal } from './RecordDetailsModal';
 
 export const DashboardShell: React.FC = () => {
   const { user, profile, role, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'occasions' | 'tryon' | 'recommendations' | 'favorites'
+    'overview' | 'hero_ai' | 'ai_history' | 'style_quiz' | 'occasions' | 'tryon' | 'recommendations' | 'favorites'
   >('overview');
+
+  const [rerunState, setRerunState] = useState<{
+    prompt: string;
+    capability?: any;
+    model?: string;
+  } | null>(null);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [quizModalOpen, setQuizModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<JewelleryRecordDoc | null>(null);
   const [tryOnItem, setTryOnItem] = useState<JewelleryCatalogItem | null>(null);
 
@@ -69,11 +82,19 @@ export const DashboardShell: React.FC = () => {
     setActiveTab('tryon');
   };
 
+  const handleRerunPrompt = (prompt: string, capability?: any, model?: string) => {
+    setRerunState({ prompt, capability, model });
+    setActiveTab('hero_ai');
+  };
+
   const navItems = [
     { id: 'overview', label: 'Vault Overview', icon: FolderLock },
+    { id: 'hero_ai', label: 'Haute AI Studio', icon: Sparkles },
+    { id: 'ai_history', label: 'AI History', icon: History },
+    { id: 'style_quiz', label: 'Style Quiz', icon: Compass },
     { id: 'occasions', label: 'Occasion Filters', icon: Layers },
     { id: 'tryon', label: 'Virtual Try-On', icon: Eye },
-    { id: 'recommendations', label: 'Recommendation Engine', icon: Compass },
+    { id: 'recommendations', label: 'Recommendation Engine', icon: Sparkles },
     { id: 'favorites', label: 'Saved Favorites', icon: Heart },
   ];
 
@@ -212,6 +233,10 @@ export const DashboardShell: React.FC = () => {
               <span className="font-bold text-stone-900 capitalize">
                 {activeTab === 'overview'
                   ? 'Vault Overview'
+                  : activeTab === 'hero_ai'
+                  ? 'Haute AI Studio'
+                  : activeTab === 'style_quiz'
+                  ? 'Style Quiz'
                   : activeTab === 'occasions'
                   ? 'Occasion Filters'
                   : activeTab === 'tryon'
@@ -223,72 +248,95 @@ export const DashboardShell: React.FC = () => {
             </div>
           </div>
 
-          {/* Right: User Menu Dropdown */}
-          <div className="relative">
+          {/* Right: Contact Button & User Menu Dropdown */}
+          <div className="flex items-center gap-3">
             <button
-              id="topbar-user-menu-button"
-              onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-              className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-stone-200/50 transition-colors focus:outline-none"
-              aria-expanded={userDropdownOpen}
-              aria-haspopup="true"
+              onClick={() => setContactModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:text-stone-900 bg-white border border-stone-200 hover:bg-stone-50 rounded-xl shadow-xs transition-colors cursor-pointer"
+              title="Contact Haute Concierge"
             >
-              <div className="w-7 h-7 rounded-full bg-stone-900 text-amber-300 text-xs font-bold flex items-center justify-center">
-                {firstName.charAt(0)}
-              </div>
-              <span className="text-xs font-semibold text-stone-800 hidden sm:inline">
-                {firstName}
-              </span>
-              <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
+              <MessageSquare className="w-3.5 h-3.5 text-amber-600" />
+              <span className="hidden sm:inline">Concierge Inquiries</span>
             </button>
 
-            {/* Dropdown Menu */}
-            {userDropdownOpen && (
-              <>
-                <div 
-                  className="fixed inset-0 z-40" 
-                  onClick={() => setUserDropdownOpen(false)} 
-                />
-                <div 
-                  role="menu"
-                  className="absolute right-0 mt-2 w-56 bg-white rounded-2xl border border-stone-200 shadow-xl py-2 z-50 text-xs"
-                >
-                  <div className="px-4 py-2 border-b border-stone-100">
-                    <p className="font-bold text-stone-900">{fullName}</p>
-                    <p className="text-[11px] text-stone-500 truncate">{user?.email}</p>
-                    <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-                      <ShieldCheck className="w-3 h-3 text-amber-700" />
-                      <span>Role: {userRole}</span>
-                    </div>
-                  </div>
-
-                  <button
-                    role="menuitem"
-                    onClick={() => {
-                      setUserDropdownOpen(false);
-                      setSettingsModalOpen(true);
-                    }}
-                    className="w-full px-4 py-2 text-left text-stone-700 hover:bg-stone-50 flex items-center gap-2 font-medium"
-                  >
-                    <Settings className="w-3.5 h-3.5 text-stone-400" />
-                    <span>Account Settings</span>
-                  </button>
-
-                  <div className="border-t border-stone-100 my-1" />
-
-                  <button
-                    role="menuitem"
-                    onClick={() => {
-                      setUserDropdownOpen(false);
-                      signOut();
-                    }}
-                    className="w-full px-4 py-2 text-left text-rose-600 hover:bg-rose-50 flex items-center gap-2 font-medium"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>Sign Out</span>
-                  </button>
+            <div className="relative">
+              <button
+                id="topbar-user-menu-button"
+                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-stone-200/50 transition-colors focus:outline-none cursor-pointer"
+                aria-expanded={userDropdownOpen}
+                aria-haspopup="true"
+              >
+                <div className="w-7 h-7 rounded-full bg-stone-900 text-amber-300 text-xs font-bold flex items-center justify-center">
+                  {firstName.charAt(0)}
                 </div>
-              </>
-            )}
+                <span className="text-xs font-semibold text-stone-800 hidden sm:inline">
+                  {firstName}
+                </span>
+                <ChevronDown className="w-3.5 h-3.5 text-stone-400" />
+              </button>
+
+              {/* Dropdown Menu */}
+              {userDropdownOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setUserDropdownOpen(false)} 
+                  />
+                  <div 
+                    role="menu"
+                    className="absolute right-0 mt-2 w-56 bg-white rounded-2xl border border-stone-200 shadow-xl py-2 z-50 text-xs"
+                  >
+                    <div className="px-4 py-2 border-b border-stone-100">
+                      <p className="font-bold text-stone-900">{fullName}</p>
+                      <p className="text-[11px] text-stone-500 truncate">{user?.email}</p>
+                      <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                        <ShieldCheck className="w-3 h-3 text-amber-700" />
+                        <span>Role: {userRole}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setUserDropdownOpen(false);
+                        setContactModalOpen(true);
+                      }}
+                      className="w-full px-4 py-2 text-left text-stone-700 hover:bg-stone-50 flex items-center gap-2 font-medium cursor-pointer"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Contact Concierge</span>
+                    </button>
+
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setUserDropdownOpen(false);
+                        setSettingsModalOpen(true);
+                      }}
+                      className="w-full px-4 py-2 text-left text-stone-700 hover:bg-stone-50 flex items-center gap-2 font-medium cursor-pointer"
+                    >
+                      <Settings className="w-3.5 h-3.5 text-stone-400" />
+                      <span>Account Settings</span>
+                    </button>
+
+                    <div className="border-t border-stone-100 my-1" />
+
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setUserDropdownOpen(false);
+                        signOut();
+                      }}
+                      className="w-full px-4 py-2 text-left text-rose-600 hover:bg-rose-50 flex items-center gap-2 font-medium cursor-pointer"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
         </header>
@@ -299,7 +347,7 @@ export const DashboardShell: React.FC = () => {
             <DashboardOverview
               records={records}
               loadingRecords={loadingRecords}
-              onOpenQuiz={() => setQuizModalOpen(true)}
+              onOpenQuiz={() => setActiveTab('style_quiz')}
               onOpenOccasions={() => setActiveTab('occasions')}
               onOpenTryOn={() => setActiveTab('tryon')}
               onOpenRecommendations={() => setActiveTab('recommendations')}
@@ -307,6 +355,26 @@ export const DashboardShell: React.FC = () => {
               onSelectRecord={(rec) => setSelectedRecord(rec)}
               onNavigateTab={(tabId) => setActiveTab(tabId as any)}
             />
+          )}
+
+          {activeTab === 'hero_ai' && (
+            <HeroAiStudio
+              initialPrompt={rerunState?.prompt}
+              initialCapability={rerunState?.capability}
+              initialModel={rerunState?.model}
+              onNavigateToHistory={() => setActiveTab('ai_history')}
+            />
+          )}
+
+          {activeTab === 'ai_history' && (
+            <AiHistoryPage
+              onRerunPrompt={handleRerunPrompt}
+              onNavigateToStudio={() => setActiveTab('hero_ai')}
+            />
+          )}
+
+          {activeTab === 'style_quiz' && (
+            <StyleQuizManager />
           )}
 
           {activeTab === 'occasions' && (
@@ -375,6 +443,12 @@ export const DashboardShell: React.FC = () => {
         record={selectedRecord}
         onClose={() => setSelectedRecord(null)}
         onRecordUpdated={() => {}}
+      />
+
+      <ContactModal
+        isOpen={contactModalOpen}
+        onClose={() => setContactModalOpen(false)}
+        source="dashboard_concierge"
       />
 
     </div>

@@ -88,26 +88,31 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </p>
         </div>
 
-        {/* Quick Actions: 'Create new', 'View history', 'Open settings' */}
+        {/* Quick Actions: 'Create new', 'Haute AI Studio', 'View history', 'Open settings' */}
         <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0">
+          <button
+            id="quick-action-ai-studio"
+            onClick={() => onNavigateTab('hero_ai')}
+            className="px-4 py-2.5 bg-amber-400 hover:bg-amber-300 text-stone-950 text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 focus:outline-none cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4 text-stone-950" />
+            <span>Haute AI Studio</span>
+          </button>
           <button
             id="quick-action-create"
             onClick={onOpenQuiz}
-            className="px-4 py-2.5 bg-[#1A1715] hover:bg-[#2E2825] text-[#FAF8F5] text-xs font-bold rounded-xl shadow-xs hover:shadow-md transition-all flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            className="px-4 py-2.5 bg-[#1A1715] hover:bg-[#2E2825] text-[#FAF8F5] text-xs font-bold rounded-xl shadow-xs hover:shadow-md transition-all flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
           >
             <Plus className="w-4 h-4 text-amber-300" />
-            <span>Create new</span>
+            <span>Style Quiz</span>
           </button>
           <button
             id="quick-action-history"
-            onClick={() => {
-              const el = document.getElementById('primary-work-area');
-              el?.scrollIntoView({ behavior: 'smooth' });
-            }}
-            className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 focus:outline-none"
+            onClick={() => onNavigateTab('ai_history')}
+            className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 focus:outline-none cursor-pointer"
           >
             <Clock className="w-4 h-4 text-stone-500" />
-            <span>View history</span>
+            <span>AI History</span>
           </button>
           <button
             id="quick-action-settings"
