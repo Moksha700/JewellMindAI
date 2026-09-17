@@ -1,15 +1,12 @@
 import express from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import { z } from 'zod';
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenAI } from '@google/genai';
 
 dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3000;
@@ -280,6 +277,17 @@ Tone: Refined, gemologically rigorous, inspiring, and concise.`;
 app.post('/api/ai-run', handleAiRun);
 app.post('/functions/v1/ai-run', handleAiRun);
 
+// Direct PDF Knowledge Base download route
+app.get(['/api/download-kb-pdf', '/api/knowledge-base.pdf'], (req, res) => {
+  const pdfPath = path.join(process.cwd(), 'public', 'JewelMind_AI_Knowledge_Base.pdf');
+  if (fs.existsSync(pdfPath)) {
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="JewelMind_AI_Knowledge_Base.pdf"');
+    return fs.createReadStream(pdfPath).pipe(res);
+  }
+  res.status(404).json({ error: 'Knowledge Base PDF not found' });
+});
+
 // Vite middleware for development & static serving for production
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
@@ -290,7 +298,10 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    const candidatePath = path.join(process.cwd(), 'dist');
+    const distPath = fs.existsSync(candidatePath)
+      ? candidatePath
+      : (typeof __dirname !== 'undefined' ? __dirname : candidatePath);
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));

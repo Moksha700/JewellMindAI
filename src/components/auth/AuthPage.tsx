@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Diamond, Lock, Mail, User as UserIcon, ArrowLeft, Loader2, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { Diamond, Lock, Mail, User as UserIcon, ArrowLeft, Loader2, Sparkles, Eye, EyeOff, ExternalLink } from 'lucide-react';
 
 interface AuthPageProps {
   initialTab?: 'signin' | 'signup';
@@ -159,6 +159,21 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             </svg>
             <span className="text-sm">Continue with Google</span>
           </button>
+
+          {typeof window !== 'undefined' && window.self !== window.top && (
+            <div className="text-center pt-1">
+              <a
+                href={window.location.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-[11px] text-stone-500 hover:text-stone-800 transition-colors underline underline-offset-2"
+                title="Open app in a top-level tab"
+              >
+                <span>Prefer standalone browser tab? Open here</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          )}
 
           {/* Divider */}
           <div className="relative my-2">

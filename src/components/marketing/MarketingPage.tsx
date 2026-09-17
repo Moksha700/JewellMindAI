@@ -15,9 +15,13 @@ import {
   Compass,
   Gift,
   Store,
-  ExternalLink
+  ExternalLink,
+  BookOpen,
+  Download
 } from 'lucide-react';
 import { ContactForm } from '../contact/ContactForm';
+import { KnowledgeBaseModal } from '../knowledge/KnowledgeBaseModal';
+import { generateKnowledgeBasePDF } from '../../utils/pdfGenerator';
 
 interface MarketingPageProps {
   onNavigateAuth: (tab: 'signin' | 'signup') => void;
@@ -29,6 +33,7 @@ export const MarketingPage: React.FC<MarketingPageProps> = ({
   onOpenQuickFeature 
 }) => {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [kbModalOpen, setKbModalOpen] = useState(false);
 
   const toggleFaq = (idx: number) => {
     setOpenFaq(openFaq === idx ? null : idx);
@@ -95,6 +100,16 @@ export const MarketingPage: React.FC<MarketingPageProps> = ({
             >
               Contact
             </a>
+            <button 
+              id="nav-kb-trigger"
+              type="button"
+              onClick={() => setKbModalOpen(true)}
+              className="hover:text-[#1A1715] transition-colors py-1 focus:outline-none cursor-pointer flex items-center gap-1.5"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-amber-600" />
+              <span>Knowledge Base</span>
+              <span className="text-[10px] bg-amber-100 text-amber-900 font-bold px-1.5 py-0.2 rounded border border-amber-200">PDF</span>
+            </button>
           </div>
 
           {/* CTA Group */}
@@ -849,12 +864,29 @@ export const MarketingPage: React.FC<MarketingPageProps> = ({
 
             {/* Col 2: Platform */}
             <div className="space-y-3">
-              <p className="text-white font-semibold uppercase tracking-wider text-[11px]">Platform</p>
+              <p className="text-white font-semibold uppercase tracking-wider text-[11px]">Platform & Learning</p>
               <ul className="space-y-2">
                 <li><a href="#features" className="hover:text-white transition-colors">Style Quiz</a></li>
                 <li><a href="#features" className="hover:text-white transition-colors">Occasion Filters</a></li>
                 <li><a href="#features" className="hover:text-white transition-colors">Virtual Try-On</a></li>
-                <li><a href="#outcomes" className="hover:text-white transition-colors">Client Outcomes</a></li>
+                <li>
+                  <button 
+                    onClick={() => setKbModalOpen(true)}
+                    className="hover:text-white transition-colors cursor-pointer text-left flex items-center gap-1.5"
+                  >
+                    <span>Knowledge Base</span>
+                    <span className="text-[9px] bg-amber-400 text-stone-950 font-bold px-1 rounded">PDF</span>
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => generateKnowledgeBasePDF()}
+                    className="hover:text-white transition-colors cursor-pointer text-left flex items-center gap-1.5 text-amber-300"
+                  >
+                    <Download className="w-3 h-3 text-amber-400" />
+                    <span>Download KB (PDF)</span>
+                  </button>
+                </li>
               </ul>
             </div>
 
@@ -890,6 +922,11 @@ export const MarketingPage: React.FC<MarketingPageProps> = ({
           </div>
         </div>
       </footer>
+
+      <KnowledgeBaseModal
+        isOpen={kbModalOpen}
+        onClose={() => setKbModalOpen(false)}
+      />
 
     </div>
   );

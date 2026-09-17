@@ -17,8 +17,11 @@ import {
   Calendar,
   ExternalLink,
   ChevronRight,
-  Diamond
+  Diamond,
+  BookOpen,
+  Download
 } from 'lucide-react';
+import { generateKnowledgeBasePDF } from '../../utils/pdfGenerator';
 
 interface DashboardOverviewProps {
   records: JewelleryRecordDoc[];
@@ -30,6 +33,7 @@ interface DashboardOverviewProps {
   onOpenSettings: () => void;
   onSelectRecord: (rec: JewelleryRecordDoc) => void;
   onNavigateTab: (tabId: string) => void;
+  onOpenKnowledgeBase?: () => void;
 }
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
@@ -42,6 +46,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   onOpenSettings,
   onSelectRecord,
   onNavigateTab,
+  onOpenKnowledgeBase,
 }) => {
   const { profile } = useAuth();
   const [filterCategory, setFilterCategory] = useState<string>('All');
@@ -113,6 +118,16 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           >
             <Clock className="w-4 h-4 text-stone-500" />
             <span>AI History</span>
+          </button>
+          <button
+            id="quick-action-kb"
+            onClick={onOpenKnowledgeBase}
+            className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300/80 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 focus:outline-none cursor-pointer shadow-xs"
+            title="Open Knowledge Base & Download PDF"
+          >
+            <BookOpen className="w-4 h-4 text-amber-700" />
+            <span>Knowledge Base</span>
+            <span className="text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded font-bold">PDF</span>
           </button>
           <button
             id="quick-action-settings"
@@ -306,6 +321,47 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             <div className="pt-4 flex items-center gap-1 text-xs font-bold text-rose-800 group-hover:text-rose-950">
               <span>View Favorites</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
+            </div>
+          </div>
+
+          {/* Card 6: Knowledge Base & PDF Manual */}
+          <div
+            id="capability-card-knowledge-base"
+            onClick={onOpenKnowledgeBase}
+            className="bg-white p-5 rounded-3xl border-2 border-amber-300/80 shadow-xs hover:shadow-md hover:border-amber-500 cursor-pointer transition-all flex flex-col justify-between group bg-gradient-to-b from-amber-50/30 to-white"
+          >
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-2xl bg-[#1A1715] text-amber-300 flex items-center justify-center group-hover:scale-105 transition-transform shadow-xs">
+                  <BookOpen className="w-5 h-5 text-amber-300" />
+                </div>
+                <span className="text-[10px] uppercase font-bold text-amber-900 bg-amber-200/70 px-2 py-0.5 rounded-full">
+                  PDF Available
+                </span>
+              </div>
+              <h3 className="font-serif-luxury text-lg font-bold text-stone-900">
+                Knowledge Base (KB)
+              </h3>
+              <p className="text-xs text-stone-500 leading-relaxed">
+                Official guide to Gemini 2.5, 4Cs diamond physics, metallurgy, and virtual try-on mechanics.
+              </p>
+            </div>
+            <div className="pt-4 flex items-center justify-between">
+              <span className="text-xs font-bold text-amber-800 group-hover:text-amber-950 flex items-center gap-1">
+                <span>Read & Export PDF</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  generateKnowledgeBasePDF();
+                }}
+                className="p-1.5 rounded-lg bg-stone-100 hover:bg-amber-100 text-stone-700 hover:text-amber-900 transition-colors"
+                title="Download Knowledge Base PDF directly"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 
