@@ -19,9 +19,7 @@ import {
   User,
   Plus,
   MessageSquare,
-  History,
-  BookOpen,
-  Download
+  History
 } from 'lucide-react';
 import { DashboardOverview } from './DashboardOverview';
 import { OccasionFiltersView } from './OccasionFiltersView';
@@ -34,8 +32,6 @@ import { AiHistoryPage } from '../history/AiHistoryPage';
 import { ContactModal } from '../contact/ContactModal';
 import { SettingsModal } from './SettingsModal';
 import { RecordDetailsModal } from './RecordDetailsModal';
-import { KnowledgeBaseModal } from '../knowledge/KnowledgeBaseModal';
-import { generateKnowledgeBasePDF } from '../../utils/pdfGenerator';
 
 export const DashboardShell: React.FC = () => {
   const { user, profile, role, signOut } = useAuth();
@@ -54,7 +50,6 @@ export const DashboardShell: React.FC = () => {
   const [quizModalOpen, setQuizModalOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [contactModalOpen, setContactModalOpen] = useState(false);
-  const [kbModalOpen, setKbModalOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<JewelleryRecordDoc | null>(null);
   const [tryOnItem, setTryOnItem] = useState<JewelleryCatalogItem | null>(null);
 
@@ -192,27 +187,6 @@ export const DashboardShell: React.FC = () => {
           })}
         </nav>
 
-        {/* Knowledge Base & PDF Download in Sidebar */}
-        <div className="px-3 pb-2 pt-1 border-t border-stone-100">
-          <button
-            id="sidebar-knowledge-base-button"
-            onClick={() => {
-              setKbModalOpen(true);
-              setSidebarOpen(false);
-            }}
-            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all cursor-pointer shadow-xs"
-            title="Open Knowledge Base & Download PDF"
-          >
-            <div className="flex items-center gap-2.5">
-              <BookOpen className="w-4 h-4 text-amber-700" />
-              <span>Knowledge Base</span>
-            </div>
-            <span className="text-[10px] uppercase font-bold text-amber-900 bg-amber-200/80 px-1.5 py-0.5 rounded">
-              PDF
-            </span>
-          </button>
-        </div>
-
         {/* Sidebar Footer User Card */}
         <div className="p-4 border-t border-stone-100 bg-[#FAF8F5]/80">
           <div className="flex items-center justify-between">
@@ -274,19 +248,8 @@ export const DashboardShell: React.FC = () => {
             </div>
           </div>
 
-          {/* Right: Contact Button, Knowledge Base & User Menu Dropdown */}
-          <div className="flex items-center gap-2.5">
-            <button
-              id="topbar-kb-button"
-              onClick={() => setKbModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-stone-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-xl shadow-xs transition-colors cursor-pointer"
-              title="Open Knowledge Base & Download PDF"
-            >
-              <BookOpen className="w-3.5 h-3.5 text-amber-700" />
-              <span className="hidden md:inline">Knowledge Base</span>
-              <span className="text-[10px] bg-amber-200/80 text-amber-900 px-1.5 py-0.2 rounded font-bold">PDF</span>
-            </button>
-
+          {/* Right: Contact Button & User Menu Dropdown */}
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setContactModalOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:text-stone-900 bg-white border border-stone-200 hover:bg-stone-50 rounded-xl shadow-xs transition-colors cursor-pointer"
@@ -332,33 +295,6 @@ export const DashboardShell: React.FC = () => {
                         <span>Role: {userRole}</span>
                       </div>
                     </div>
-
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        setUserDropdownOpen(false);
-                        setKbModalOpen(true);
-                      }}
-                      className="w-full px-4 py-2 text-left text-stone-700 hover:bg-stone-50 flex items-center justify-between font-medium cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2">
-                        <BookOpen className="w-3.5 h-3.5 text-amber-600" />
-                        <span>Knowledge Base</span>
-                      </div>
-                      <span className="text-[9px] bg-amber-100 text-amber-900 font-bold px-1.5 py-0.5 rounded">PDF</span>
-                    </button>
-
-                    <button
-                      role="menuitem"
-                      onClick={() => {
-                        setUserDropdownOpen(false);
-                        generateKnowledgeBasePDF();
-                      }}
-                      className="w-full px-4 py-2 text-left text-stone-700 hover:bg-stone-50 flex items-center gap-2 font-medium cursor-pointer"
-                    >
-                      <Download className="w-3.5 h-3.5 text-stone-400" />
-                      <span>Download PDF Manual</span>
-                    </button>
 
                     <button
                       role="menuitem"
@@ -418,7 +354,6 @@ export const DashboardShell: React.FC = () => {
               onOpenSettings={() => setSettingsModalOpen(true)}
               onSelectRecord={(rec) => setSelectedRecord(rec)}
               onNavigateTab={(tabId) => setActiveTab(tabId as any)}
-              onOpenKnowledgeBase={() => setKbModalOpen(true)}
             />
           )}
 
@@ -485,7 +420,6 @@ export const DashboardShell: React.FC = () => {
                 onOpenSettings={() => setSettingsModalOpen(true)}
                 onSelectRecord={(rec) => setSelectedRecord(rec)}
                 onNavigateTab={(tabId) => setActiveTab(tabId as any)}
-                onOpenKnowledgeBase={() => setKbModalOpen(true)}
               />
             </div>
           )}
@@ -494,11 +428,6 @@ export const DashboardShell: React.FC = () => {
       </div>
 
       {/* Global Modals */}
-      <KnowledgeBaseModal
-        isOpen={kbModalOpen}
-        onClose={() => setKbModalOpen(false)}
-      />
-
       <StyleQuizModal
         isOpen={quizModalOpen}
         onClose={() => setQuizModalOpen(false)}

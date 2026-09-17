@@ -277,17 +277,6 @@ Tone: Refined, gemologically rigorous, inspiring, and concise.`;
 app.post('/api/ai-run', handleAiRun);
 app.post('/functions/v1/ai-run', handleAiRun);
 
-// Direct PDF Knowledge Base download route
-app.get(['/api/download-kb-pdf', '/api/knowledge-base.pdf'], (req, res) => {
-  const pdfPath = path.join(process.cwd(), 'public', 'JewelMind_AI_Knowledge_Base.pdf');
-  if (fs.existsSync(pdfPath)) {
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="JewelMind_AI_Knowledge_Base.pdf"');
-    return fs.createReadStream(pdfPath).pipe(res);
-  }
-  res.status(404).json({ error: 'Knowledge Base PDF not found' });
-});
-
 // Vite middleware for development & static serving for production
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
