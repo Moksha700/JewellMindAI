@@ -65,7 +65,11 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 // Health check connection test as required by Firebase skill
 export async function testConnection(): Promise<void> {
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
+    const testDocPromise = getDocFromServer(doc(db, 'test', 'connection'));
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Firebase connection check timed out')), 2000)
+    );
+    await Promise.race([testDocPromise, timeoutPromise]);
   } catch (error) {
     if (error instanceof Error) {
       const code = (error as { code?: string }).code;

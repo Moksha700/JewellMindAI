@@ -19,7 +19,8 @@ import {
   User,
   Plus,
   MessageSquare,
-  History
+  History,
+  Home
 } from 'lucide-react';
 import { DashboardOverview } from './DashboardOverview';
 import { OccasionFiltersView } from './OccasionFiltersView';
@@ -32,11 +33,12 @@ import { AiHistoryPage } from '../history/AiHistoryPage';
 import { ContactModal } from '../contact/ContactModal';
 import { SettingsModal } from './SettingsModal';
 import { RecordDetailsModal } from './RecordDetailsModal';
+import { AiChatbot } from '../chat/AiChatbot';
 
 export const DashboardShell: React.FC = () => {
   const { user, profile, role, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'hero_ai' | 'ai_history' | 'style_quiz' | 'occasions' | 'tryon' | 'recommendations' | 'favorites'
+    'overview' | 'hero_ai' | 'ai_chat' | 'ai_history' | 'style_quiz' | 'occasions' | 'tryon' | 'recommendations' | 'favorites'
   >('overview');
 
   const [rerunState, setRerunState] = useState<{
@@ -89,6 +91,7 @@ export const DashboardShell: React.FC = () => {
 
   const navItems = [
     { id: 'overview', label: 'Vault Overview', icon: FolderLock },
+    { id: 'ai_chat', label: 'Knowledge Chatbot', icon: MessageSquare },
     { id: 'hero_ai', label: 'Haute AI Studio', icon: Sparkles },
     { id: 'ai_history', label: 'AI History', icon: History },
     { id: 'style_quiz', label: 'Style Quiz', icon: Compass },
@@ -122,7 +125,15 @@ export const DashboardShell: React.FC = () => {
       >
         {/* Sidebar Brand Header */}
         <div className="p-6 border-b border-stone-100 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              window.location.hash = '';
+            }}
+            className="flex items-center gap-2.5 hover:opacity-90 transition-opacity"
+            title="Return to Home"
+          >
             <div className="w-9 h-9 rounded-xl bg-[#1A1715] text-amber-300 flex items-center justify-center shadow-xs border border-amber-500/20">
               <Diamond className="w-4 h-4 text-amber-300" />
             </div>
@@ -134,7 +145,7 @@ export const DashboardShell: React.FC = () => {
                 Atelier Suite
               </span>
             </div>
-          </div>
+          </a>
           
           {/* Close button on mobile */}
           <button
@@ -235,6 +246,8 @@ export const DashboardShell: React.FC = () => {
                   ? 'Vault Overview'
                   : activeTab === 'hero_ai'
                   ? 'Haute AI Studio'
+                  : activeTab === 'ai_history'
+                  ? 'AI History'
                   : activeTab === 'style_quiz'
                   ? 'Style Quiz'
                   : activeTab === 'occasions'
@@ -248,15 +261,26 @@ export const DashboardShell: React.FC = () => {
             </div>
           </div>
 
-          {/* Right: Contact Button & User Menu Dropdown */}
-          <div className="flex items-center gap-3">
+          {/* Right: Home, Contact Button & User Menu Dropdown */}
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => {
+                window.location.hash = '';
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:text-stone-900 bg-white border border-stone-200 hover:bg-stone-50 rounded-xl shadow-xs transition-colors cursor-pointer"
+              title="Return to Home Page"
+            >
+              <Home className="w-3.5 h-3.5 text-amber-600" />
+              <span>Home</span>
+            </button>
+
             <button
               onClick={() => setContactModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:text-stone-900 bg-white border border-stone-200 hover:bg-stone-50 rounded-xl shadow-xs transition-colors cursor-pointer"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:text-stone-900 bg-white border border-stone-200 hover:bg-stone-50 rounded-xl shadow-xs transition-colors cursor-pointer"
               title="Contact Haute Concierge"
             >
               <MessageSquare className="w-3.5 h-3.5 text-amber-600" />
-              <span className="hidden sm:inline">Concierge Inquiries</span>
+              <span>Concierge Inquiries</span>
             </button>
 
             <div className="relative">
@@ -300,6 +324,18 @@ export const DashboardShell: React.FC = () => {
                       role="menuitem"
                       onClick={() => {
                         setUserDropdownOpen(false);
+                        window.location.hash = '';
+                      }}
+                      className="w-full px-4 py-2 text-left text-stone-700 hover:bg-stone-50 flex items-center gap-2 font-medium cursor-pointer"
+                    >
+                      <Home className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Return to Home</span>
+                    </button>
+
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setUserDropdownOpen(false);
                         setContactModalOpen(true);
                       }}
                       className="w-full px-4 py-2 text-left text-stone-700 hover:bg-stone-50 flex items-center gap-2 font-medium cursor-pointer"
@@ -324,9 +360,10 @@ export const DashboardShell: React.FC = () => {
 
                     <button
                       role="menuitem"
-                      onClick={() => {
+                      onClick={async () => {
                         setUserDropdownOpen(false);
-                        signOut();
+                        await signOut();
+                        window.location.hash = '';
                       }}
                       className="w-full px-4 py-2 text-left text-rose-600 hover:bg-rose-50 flex items-center gap-2 font-medium cursor-pointer"
                     >
@@ -355,6 +392,16 @@ export const DashboardShell: React.FC = () => {
               onSelectRecord={(rec) => setSelectedRecord(rec)}
               onNavigateTab={(tabId) => setActiveTab(tabId as any)}
             />
+          )}
+
+          {activeTab === 'ai_chat' && (
+            <div className="space-y-6">
+              <AiChatbot
+                onNavigateToKnowledgeBase={() => {
+                  window.location.hash = 'knowledge-base';
+                }}
+              />
+            </div>
           )}
 
           {activeTab === 'hero_ai' && (

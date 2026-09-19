@@ -19,11 +19,14 @@ import {
   Sliders,
   ChevronRight,
   ExternalLink,
-  ShieldCheck
+  ShieldCheck,
+  BookOpen
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { streamAiRun, fetchUserAiRuns } from '../../services/aiRunService';
+import { askKnowledgeBaseRAG } from '../../services/ragService';
+import { KnowledgeSearchResult } from '../../types/knowledgeBase';
 import { AiCapability, AiRunRecord } from '../../types/aiRun';
 
 const CAPABILITIES: {
@@ -121,6 +124,10 @@ export const HeroAiStudio: React.FC<HeroAiStudioProps> = ({
   const [streamingResponse, setStreamingResponse] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
   
+  // Knowledge Base RAG state
+  const [useRag, setUseRag] = useState<boolean>(false);
+  const [ragSources, setRagSources] = useState<KnowledgeSearchResult[]>([]);
+
   // History runs from public.ai_runs
   const [history, setHistory] = useState<AiRunRecord[]>([]);
   const [historyLoading, setHistoryLoading] = useState<boolean>(false);
@@ -171,6 +178,35 @@ export const HeroAiStudio: React.FC<HeroAiStudioProps> = ({
 
     setIsStreaming(true);
     setStreamingResponse('');
+
+    // If Knowledge Base Grounding is active, use the RAG pipeline
+    if (useRag) {
+      setRagSources([]);
+      try {
+        await askKnowledgeBaseRAG({
+          question: textToRun.trim(),
+          userId: user?.uid,
+          model,
+          capability: activeCapability,
+          onToken: (token) => {
+            setStreamingResponse((prev) => prev + token);
+          },
+          onError: ({ message }) => {
+            setIsStreaming(false);
+            showToast(message || 'An error occurred during Knowledge Base RAG inquiry.', 'error');
+          },
+          onComplete: (_fullText, chunks) => {
+            setIsStreaming(false);
+            setRagSources(chunks);
+            showToast('Knowledge Base grounding complete!', 'success');
+          },
+        });
+      } catch (err: any) {
+        setIsStreaming(false);
+        showToast(err.message || 'Error running RAG query', 'error');
+      }
+      return;
+    }
 
     await streamAiRun(
       {
@@ -383,10 +419,27 @@ export const HeroAiStudio: React.FC<HeroAiStudioProps> = ({
             </div>
 
             {/* Run Action Bar */}
-            <div className="mt-5 pt-4 border-t border-stone-100 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-stone-500">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Auth: supabase.auth.getUser() &bull; RLS Enabled</span>
+            <div className="mt-5 pt-4 border-t border-stone-100 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="hidden sm:flex items-center gap-2 text-xs text-stone-500">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>RLS Enabled</span>
+                </div>
+
+                <button
+                  id="hero-ai-toggle-rag"
+                  type="button"
+                  onClick={() => setUseRag(!useRag)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border transition-colors cursor-pointer ${
+                    useRag
+                      ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-2xs'
+                      : 'bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100'
+                  }`}
+                  title="Enable RAG Grounding using uploaded Knowledge Base documents"
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Ground with Knowledge Base: {useRag ? 'ON' : 'OFF'}</span>
+                </button>
               </div>
 
               <button
@@ -445,6 +498,31 @@ export const HeroAiStudio: React.FC<HeroAiStudioProps> = ({
                 </button>
               )}
             </div>
+
+            {/* RAG Grounding Sources Banner */}
+            {ragSources.length > 0 && (
+              <div id="hero-ai-rag-sources-banner" className="mb-3 p-2.5 bg-amber-50/80 border border-amber-200/90 rounded-xl space-y-1.5 text-xs">
+                <div className="flex items-center justify-between text-amber-950 font-semibold text-[11px]">
+                  <span className="flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5 text-amber-700" />
+                    <span>Grounded with {ragSources.length} Knowledge Chunk{ragSources.length > 1 ? 's' : ''}</span>
+                  </span>
+                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                    RAG Grounded
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {ragSources.map((source, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2 py-0.5 bg-white border border-amber-200 rounded text-[10px] text-stone-700 font-mono shadow-2xs"
+                    >
+                      {source.documentName} (#{source.chunkIndex}) &bull; {Math.round(source.relevanceScore * 100)}%
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Output Display */}
             <div className="flex-1 min-h-[300px] max-h-[460px] overflow-y-auto pr-1 text-stone-800 text-xs sm:text-sm leading-relaxed font-sans">

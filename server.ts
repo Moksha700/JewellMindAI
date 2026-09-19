@@ -124,10 +124,10 @@ const handleAiRun = async (req: express.Request, res: express.Response) => {
       });
     }
 
-    const { prompt, capability, model, imageUrl } = parseResult.data;
+    const { prompt, capability, model, imageUrl, context } = parseResult.data;
 
-    // 3. System prompt tailored to JewelMind AI Capabilities
-    const systemInstruction = `You are JewelMind AI, the haute jewellery intelligence engine.
+    // 3. System prompt tailored to JewelMind AI Capabilities & Knowledge Base RAG
+    let systemInstruction = `You are JewelMind AI, the haute jewellery intelligence engine.
 Capabilities:
 - Language understanding: Interpret custom jewelry requests, metal alloys, gemstone clarity, cuts, carats, and settings.
 - Predictions / recommendations: Analyze micro-trends, style aesthetics (Art Deco, Minimalist, Royal Heirlooms), and recommend complementary metals & stones.
@@ -137,6 +137,22 @@ Capabilities:
 
 Active Mode: ${capability}
 Tone: Refined, gemologically rigorous, inspiring, and concise.`;
+
+    if (context?.ragContext) {
+      systemInstruction = `You are JewelMind AI, the haute jewellery intelligence engine operating in Knowledge Base Grounding mode.
+
+VERIFIED RETRIEVED KNOWLEDGE BASE CONTEXT:
+=========================================
+${context.ragContext}
+=========================================
+
+MANDATORY GROUNDING INSTRUCTIONS:
+1. Prioritize and base your answer directly on the facts, specifications, and data in the VERIFIED RETRIEVED KNOWLEDGE BASE CONTEXT above.
+2. Cite the source document name from the context where relevant (e.g. "[Source: Document Name]").
+3. CRITICAL REQUIREMENT: If the retrieved Knowledge Base context does not contain enough information or facts to answer the question, clearly state:
+"The answer was not found in the uploaded knowledge base."
+Do NOT extrapolate, hallucinate, or invent details not present in the uploaded knowledge.`;
+    }
 
     // 4. Check for Lovable AI Gateway Key
     const lovableApiKey = process.env.LOVABLE_API_KEY || process.env.AI_GATEWAY_KEY;
@@ -222,7 +238,7 @@ Tone: Refined, gemologically rigorous, inspiring, and concise.`;
         }
       }
     } else {
-      // Primary Google GenAI stream using gemini-3.6-flash
+      // Primary Google GenAI stream using gemini-3.8-flash
       const ai = getGemini();
       if (!ai) {
         res.write(`event: error\ndata: ${JSON.stringify({ error: 'configuration_error', message: 'No AI Gateway or Gemini API Key configured in environment.' })}\n\n`);
@@ -231,7 +247,7 @@ Tone: Refined, gemologically rigorous, inspiring, and concise.`;
 
       const promptContents = `${systemInstruction}\n\nUser Request: ${prompt}`;
       const streamResult = await ai.models.generateContentStream({
-        model: 'gemini-3.6-flash',
+        model: 'gemini-3.8-flash',
         contents: promptContents,
       });
 

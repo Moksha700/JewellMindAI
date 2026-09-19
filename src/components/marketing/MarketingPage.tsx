@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Sparkles, 
   ArrowRight, 
@@ -15,20 +15,69 @@ import {
   Compass,
   Gift,
   Store,
-  ExternalLink
+  ExternalLink,
+  BookOpen,
+  FolderLock,
+  LogOut,
+  User as UserIcon
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { KnowledgeBasePage } from '../knowledge/KnowledgeBasePage';
+import { AiChatbot } from '../chat/AiChatbot';
 import { ContactForm } from '../contact/ContactForm';
 
 interface MarketingPageProps {
   onNavigateAuth: (tab: 'signin' | 'signup') => void;
+  onNavigateDashboard?: () => void;
   onOpenQuickFeature?: (feature: string) => void;
 }
 
 export const MarketingPage: React.FC<MarketingPageProps> = ({ 
   onNavigateAuth,
+  onNavigateDashboard,
   onOpenQuickFeature 
 }) => {
+  const { user, profile, signOut } = useAuth();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close profile dropdown on outside click or Escape key
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        profileDropdownRef.current &&
+        !profileDropdownRef.current.contains(event.target as Node)
+      ) {
+        setProfileDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setProfileDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  // Sync hash routing for chatbot popup
+  useEffect(() => {
+    const checkHash = () => {
+      if (window.location.hash === '#chatbot' || window.location.hash === '#chat') {
+        setIsChatOpen(true);
+      }
+    };
+    checkHash();
+    window.addEventListener('hashchange', checkHash);
+    return () => window.removeEventListener('hashchange', checkHash);
+  }, []);
 
   const toggleFaq = (idx: number) => {
     setOpenFaq(openFaq === idx ? null : idx);
@@ -65,6 +114,15 @@ export const MarketingPage: React.FC<MarketingPageProps> = ({
 
           {/* Primary Nav Links */}
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-[#57534E]">
+            {user && (
+              <a 
+                href="#knowledge-base" 
+                className="text-amber-800 font-bold hover:text-[#1A1715] transition-colors py-1 flex items-center gap-1.5 focus:outline-none"
+              >
+                <BookOpen className="w-4 h-4 text-amber-600" />
+                <span>Knowledge Base</span>
+              </a>
+            )}
             <a 
               href="#features" 
               className="hover:text-[#1A1715] transition-colors py-1 focus:outline-none focus:text-[#1A1715]"
@@ -99,35 +157,100 @@ export const MarketingPage: React.FC<MarketingPageProps> = ({
 
           {/* CTA Group */}
           <div className="flex items-center gap-3">
-            <button
-              id="nav-google-button"
-              onClick={() => onNavigateAuth('signin')}
-              className="hidden sm:inline-flex items-center gap-2 text-xs font-semibold text-stone-700 bg-white border border-stone-200 hover:border-stone-400 hover:bg-stone-50 px-3 py-2 rounded-xl transition-all shadow-xs"
-              title="Continue with Google"
-            >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-              </svg>
-              <span>Continue with Google</span>
-            </button>
-            <button
-              id="nav-signin-button"
-              onClick={() => onNavigateAuth('signin')}
-              className="text-sm font-semibold text-[#57534E] hover:text-[#1A1715] px-3.5 py-2 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500"
-            >
-              Sign In
-            </button>
-            <button
-              id="nav-getstarted-button"
-              onClick={() => onNavigateAuth('signup')}
-              className="text-sm font-semibold bg-[#1A1715] text-[#FAF8F5] hover:bg-[#2C2724] px-5 py-2.5 rounded-xl shadow-sm transition-all duration-200 hover:shadow-md flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-600"
-            >
-              <span>Get Started</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            {user ? (
+              <div className="relative" ref={profileDropdownRef}>
+                <button
+                  id="user-profile-menu-button"
+                  type="button"
+                  onClick={() => setProfileDropdownOpen((prev) => !prev)}
+                  className="flex items-center gap-2 text-xs font-semibold text-stone-800 bg-white border border-stone-200 hover:border-stone-300 hover:bg-stone-50 px-2.5 sm:px-3.5 py-2 rounded-xl shadow-xs transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                  aria-expanded={profileDropdownOpen}
+                  aria-haspopup="true"
+                  title="User Account Menu"
+                >
+                  <div className="w-6 h-6 rounded-full bg-stone-900 text-amber-300 text-[11px] font-bold flex items-center justify-center shrink-0">
+                    {(profile?.firstName || user.displayName || user.email || 'U').charAt(0).toUpperCase()}
+                  </div>
+                  <span className="truncate max-w-[100px] sm:max-w-[130px]">
+                    {profile?.firstName || user.displayName || user.email}
+                  </span>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 text-stone-400 transition-transform duration-150 ${
+                      profileDropdownOpen ? 'rotate-180 text-stone-700' : ''
+                    }`}
+                  />
+                </button>
+
+                {profileDropdownOpen && (
+                  <div
+                    id="user-profile-dropdown"
+                    className="absolute right-0 mt-2 w-52 bg-white rounded-2xl border border-stone-200 shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100"
+                    role="menu"
+                    aria-orientation="vertical"
+                  >
+                    <div className="px-3.5 py-2 border-b border-stone-100">
+                      <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Signed In</p>
+                      <p className="text-xs font-semibold text-stone-900 truncate mt-0.5">
+                        {profile?.firstName ? `${profile.firstName} ${profile.lastName || ''}`.trim() : user.email}
+                      </p>
+                    </div>
+
+                    <button
+                      id="dropdown-dashboard-button"
+                      type="button"
+                      onClick={() => {
+                        setProfileDropdownOpen(false);
+                        if (onNavigateDashboard) {
+                          onNavigateDashboard();
+                        } else {
+                          window.location.hash = 'dashboard';
+                        }
+                      }}
+                      className="w-full text-left px-3.5 py-2.5 text-xs font-medium text-stone-700 hover:bg-amber-50/60 hover:text-amber-950 flex items-center gap-2.5 transition-colors cursor-pointer"
+                      role="menuitem"
+                    >
+                      <FolderLock className="w-4 h-4 text-amber-600" />
+                      <span>Dashboard</span>
+                    </button>
+
+                    <div className="border-t border-stone-100 my-1" />
+
+                    <button
+                      id="dropdown-signout-button"
+                      type="button"
+                      onClick={async () => {
+                        setProfileDropdownOpen(false);
+                        await signOut();
+                        window.location.hash = '';
+                      }}
+                      className="w-full text-left px-3.5 py-2.5 text-xs font-medium text-rose-600 hover:bg-rose-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                      role="menuitem"
+                    >
+                      <LogOut className="w-4 h-4 text-rose-500" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <button
+                  id="nav-signin-button"
+                  onClick={() => onNavigateAuth('signin')}
+                  className="text-sm font-semibold text-[#57534E] hover:text-[#1A1715] px-3.5 py-2 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+                >
+                  Sign In
+                </button>
+                <button
+                  id="nav-getstarted-button"
+                  onClick={() => onNavigateAuth('signup')}
+                  className="text-sm font-semibold bg-[#1A1715] text-[#FAF8F5] hover:bg-[#2C2724] px-5 py-2.5 rounded-xl shadow-sm transition-all duration-200 hover:shadow-md flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-600 cursor-pointer"
+                >
+                  <span>Get Started</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </>
+            )}
           </div>
         </nav>
       </header>
@@ -284,6 +407,19 @@ export const MarketingPage: React.FC<MarketingPageProps> = ({
             </div>
           </div>
         </section>
+
+        {/* KNOWLEDGE BASE SECTION: Visible ONLY on Home page for authenticated users */}
+        {user && (
+          <section 
+            id="knowledge-base" 
+            aria-labelledby="knowledge-base-heading"
+            className="py-14 md:py-20 bg-white border-b border-[#EBE7DF]"
+          >
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <KnowledgeBasePage />
+            </div>
+          </section>
+        )}
 
         {/* 3. FEATURE GRID (3 CARDS): Style Quiz, Occasion Filters, Virtual Try-On */}
         <section 
@@ -890,6 +1026,57 @@ export const MarketingPage: React.FC<MarketingPageProps> = ({
           </div>
         </div>
       </footer>
+
+      {/* FLOATING AI CHATBOT (Bottom-Right corner) */}
+      <div id="floating-ai-chatbot-root">
+        {/* Floating Chat Panel Popup (Above button, stays in viewport) */}
+        {isChatOpen && (
+          <div
+            id="floating-ai-chatbot-panel"
+            role="dialog"
+            aria-label="AI Chatbot Assistant"
+            className="fixed bottom-20 right-4 sm:bottom-22 sm:right-6 z-50 w-[calc(100vw-2rem)] sm:w-[440px] md:w-[470px] max-w-[95vw] h-[580px] max-h-[calc(100vh-6.5rem)] shadow-2xl rounded-3xl overflow-hidden border border-stone-200 bg-white flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-200"
+          >
+            <AiChatbot
+              isFloating={true}
+              onClose={() => setIsChatOpen(false)}
+              onNavigateToKnowledgeBase={() => {
+                setIsChatOpen(false);
+                const el = document.getElementById('knowledge-base');
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                  window.location.hash = 'knowledge-base';
+                }
+              }}
+            />
+          </div>
+        )}
+
+        {/* Floating Trigger Button (Fixed to bottom-right corner) */}
+        <button
+          id="floating-ai-chatbot-button"
+          type="button"
+          onClick={() => setIsChatOpen((prev) => !prev)}
+          className={`fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-50 group flex items-center gap-2.5 px-4 py-3 sm:px-5 sm:py-3.5 rounded-full shadow-2xl border transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-400 select-none ${
+            isChatOpen
+              ? 'bg-[#1A1715] text-[#FAF8F5] border-amber-400/60 shadow-amber-950/30'
+              : 'bg-[#1A1715] text-[#FAF8F5] hover:bg-[#2C2724] border-amber-500/40 hover:border-amber-400'
+          }`}
+          aria-expanded={isChatOpen}
+          aria-haspopup="dialog"
+          aria-label={isChatOpen ? 'Close AI Chatbot' : 'Open AI Chatbot'}
+          title={isChatOpen ? 'Close AI Chatbot' : 'Open AI Chatbot (RAG Grounded)'}
+        >
+          <div className="relative flex items-center justify-center">
+            <Sparkles className="w-5 h-5 text-amber-300 group-hover:scale-110 transition-transform" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-[#1A1715] animate-pulse" />
+          </div>
+          <span className="text-xs font-bold text-amber-100 tracking-wide font-sans-clean">
+            {isChatOpen ? 'Close AI Chat' : 'AI Chatbot'}
+          </span>
+        </button>
+      </div>
 
     </div>
   );

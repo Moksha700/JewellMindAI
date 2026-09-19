@@ -50,12 +50,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Track if listener is active
   const listenerInitialized = useRef(false);
 
-  // Helper to fetch profile row from `profiles` table (keyed by auth user id)
+  // Helper to wrap async calls with a bounded timeout
+  const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<T>((resolve) => setTimeout(() => resolve(fallback), timeoutMs)),
+    ]);
+  };
+
+  // Helper to resolve session from localStorage
+  const resolveStoredSession = (): boolean => {
+    try {
+      const storedRaw = localStorage.getItem(LOCAL_STORAGE_SESSION_KEY);
+      if (storedRaw) {
+        const stored = JSON.parse(storedRaw);
+        if (stored?.uid) {
+          setUser({
+            uid: stored.uid,
+            email: stored.email || null,
+            displayName: stored.profile?.firstName 
+              ? `${stored.profile.firstName} ${stored.profile.lastName || ''}`.trim()
+              : (stored.displayName || 'Jewellery Lover'),
+          });
+          if (stored.profile) {
+            setProfile(stored.profile);
+          }
+          if (stored.role) {
+            setRole(stored.role || 'user');
+          }
+          if (typeof stored.isSandbox === 'boolean') {
+            setIsSandboxMode(stored.isSandbox);
+          }
+          return true;
+        }
+      }
+    } catch (e) {
+      console.warn('Error reading stored session', e);
+    }
+    return false;
+  };
+
+  // Helper to fetch profile row from `profiles` table (keyed by auth user id) with 2000ms safety timeout
   const fetchUserProfile = async (uid: string, fallbackEmail?: string): Promise<UserProfile | null> => {
     try {
       const profileRef = doc(db, 'profiles', uid);
-      const snap = await getDoc(profileRef);
-      if (snap.exists()) {
+      const snap = await withTimeout(getDoc(profileRef), 2000, null as any);
+      if (snap && snap.exists && snap.exists()) {
         const data = snap.data();
         return {
           id: snap.id,
@@ -68,17 +108,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return null;
     } catch (err) {
-      console.warn('Could not fetch user profile from Firestore:', err);
+      console.warn('Could not fetch user profile from Firestore (using fallback):', err);
       return null;
     }
   };
 
-  // Helper to fetch user role from separate `user_roles` table
+  // Helper to fetch user role from separate `user_roles` table with 2000ms safety timeout
   const fetchUserRole = async (uid: string): Promise<'user' | 'admin'> => {
     try {
       const roleRef = doc(db, 'user_roles', uid);
-      const snap = await getDoc(roleRef);
-      if (snap.exists()) {
+      const snap = await withTimeout(getDoc(roleRef), 2000, null as any);
+      if (snap && snap.exists && snap.exists()) {
         return snap.data().role as 'user' | 'admin';
       }
       return 'user';
@@ -88,93 +128,105 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // onAuthStateChange listener + initial getSession()
+  // onAuthStateChange listener + initial getSession() with fail-safe bounds
   useEffect(() => {
     if (listenerInitialized.current) return;
     listenerInitialized.current = true;
 
-    // 1. SET LISTENER FIRST
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        setIsSandboxMode(false);
-        
-        // Persist session to localStorage
-        try {
-          const sessionPayload = {
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName,
-            isSandbox: false,
-            savedAt: Date.now(),
-          };
-          localStorage.setItem(LOCAL_STORAGE_SESSION_KEY, JSON.stringify(sessionPayload));
-        } catch (e) {
-          console.warn('Could not persist session to localStorage', e);
-        }
+    // Fast-path check for cached session from localStorage
+    resolveStoredSession();
 
-        // Fetch or initialize profile
-        const prof = await fetchUserProfile(firebaseUser.uid, firebaseUser.email || '');
-        if (prof) {
-          setProfile(prof);
-        } else {
-          // If profile does not exist yet, generate default profile
-          const initialProf: UserProfile = {
-            id: firebaseUser.uid,
-            email: firebaseUser.email || '',
-            firstName: firebaseUser.displayName?.split(' ')[0] || 'Jewellery Lover',
-            lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || '',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
+    // Safety watchdog timer: guarantees the application never remains in loading state beyond 2000ms
+    const safetyTimer = setTimeout(() => {
+      resolveStoredSession();
+      setLoading(false);
+    }, 2000);
+
+    let unsubscribe = () => {};
+
+    try {
+      unsubscribe = onAuthStateChanged(
+        auth,
+        async (firebaseUser) => {
           try {
-            await setDoc(doc(db, 'profiles', firebaseUser.uid), initialProf);
-            setProfile(initialProf);
-          } catch (e) {
-            console.warn('Notice: Firestore profile auto-write deferred:', e);
-            setProfile(initialProf);
-          }
-        }
+            clearTimeout(safetyTimer);
+            if (firebaseUser) {
+              setUser(firebaseUser);
+              setIsSandboxMode(false);
+              
+              // Persist session to localStorage
+              try {
+                const sessionPayload = {
+                  uid: firebaseUser.uid,
+                  email: firebaseUser.email,
+                  displayName: firebaseUser.displayName,
+                  isSandbox: false,
+                  savedAt: Date.now(),
+                };
+                localStorage.setItem(LOCAL_STORAGE_SESSION_KEY, JSON.stringify(sessionPayload));
+              } catch (e) {
+                console.warn('Could not persist session to localStorage', e);
+              }
 
-        // Fetch separate role from user_roles
-        const userRole = await fetchUserRole(firebaseUser.uid);
-        setRole(userRole);
-        setLoading(false);
-      } else {
-        // Check if we have an active session in localStorage (sandbox or Google fallback)
-        try {
-          const storedRaw = localStorage.getItem(LOCAL_STORAGE_SESSION_KEY);
-          if (storedRaw) {
-            const stored = JSON.parse(storedRaw);
-            if (stored?.uid && stored?.profile) {
-              setUser({
-                uid: stored.uid,
-                email: stored.email || null,
-                displayName: stored.profile.firstName 
-                  ? `${stored.profile.firstName} ${stored.profile.lastName || ''}`.trim()
-                  : (stored.displayName || 'Jewellery Lover'),
-              });
-              setProfile(stored.profile);
-              setRole(stored.role || 'user');
-              setIsSandboxMode(!!stored.isSandbox);
-              setLoading(false);
-              return;
+              // Fetch or initialize profile with safety timeout
+              const prof = await fetchUserProfile(firebaseUser.uid, firebaseUser.email || '');
+              if (prof) {
+                setProfile(prof);
+              } else {
+                // If profile does not exist yet, generate default profile
+                const initialProf: UserProfile = {
+                  id: firebaseUser.uid,
+                  email: firebaseUser.email || '',
+                  firstName: firebaseUser.displayName?.split(' ')[0] || 'Jewellery Lover',
+                  lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || '',
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                };
+                setProfile(initialProf);
+                // Background non-blocking sync
+                setDoc(doc(db, 'profiles', firebaseUser.uid), initialProf).catch((e) => {
+                  console.warn('Notice: Firestore profile auto-write deferred:', e);
+                });
+              }
+
+              // Fetch separate role from user_roles
+              const userRole = await fetchUserRole(firebaseUser.uid);
+              setRole(userRole);
+            } else {
+              // Firebase reports no user
+              const hasStored = resolveStoredSession();
+              if (!hasStored) {
+                setUser(null);
+                setProfile(null);
+                setRole(null);
+                setIsSandboxMode(false);
+              }
             }
+          } catch (handlerErr) {
+            console.warn('Notice during auth state resolution:', handlerErr);
+            resolveStoredSession();
+          } finally {
+            setLoading(false);
           }
-        } catch (e) {
-          console.warn('Error reading stored session', e);
+        },
+        (authErr) => {
+          console.warn('Firebase onAuthStateChanged notice:', authErr);
+          clearTimeout(safetyTimer);
+          resolveStoredSession();
+          setLoading(false);
         }
+      );
+    } catch (syncErr) {
+      console.warn('Could not register onAuthStateChanged listener, continuing in fallback mode:', syncErr);
+      clearTimeout(safetyTimer);
+      resolveStoredSession();
+      setLoading(false);
+    }
 
-        // Only clear state if no local session exists
-        setUser(null);
-        setProfile(null);
-        setRole(null);
-        setIsSandboxMode(false);
-        setLoading(false);
-      }
-    });
-
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(safetyTimer);
+      unsubscribe();
+    };
   }, []);
 
   const refreshProfile = async () => {

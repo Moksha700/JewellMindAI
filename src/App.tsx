@@ -37,6 +37,21 @@ const AppContent: React.FC = () => {
       } else if (hash === 'auth' || hash === 'signin' || hash === 'signup') {
         setCurrentRoute('auth');
         setAuthTab(hash === 'signup' ? 'signup' : 'signin');
+      } else if (hash === 'knowledge_base' || hash === 'knowledge-base') {
+        if (!user) {
+          // If a logged-out user attempts to access Knowledge Base directly, redirect to Login
+          setCurrentRoute('auth');
+          setAuthTab('signin');
+          window.location.hash = 'signin';
+        } else {
+          setCurrentRoute('home');
+          setTimeout(() => {
+            const el = document.getElementById('knowledge-base');
+            el?.scrollIntoView({ behavior: 'smooth' });
+          }, 100);
+        }
+      } else if (hash === 'chat' || hash === 'chatbot') {
+        setCurrentRoute('home');
       } else {
         setCurrentRoute('home');
       }
@@ -47,16 +62,16 @@ const AppContent: React.FC = () => {
 
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+  }, [user]);
 
   // Protected route enforcement:
-  // 1. If user is signed in and on /auth -> redirect to dashboard
+  // 1. If user is signed in and on /auth -> redirect to home page
   // 2. If user is unauthenticated and tries to open /dashboard -> redirect to /auth
   useEffect(() => {
     if (loading) return;
 
     if (user && currentRoute === 'auth') {
-      navigateToRoute('dashboard');
+      navigateToRoute('home');
     } else if (!user && currentRoute === 'dashboard') {
       navigateToRoute('auth');
     }
@@ -68,7 +83,18 @@ const AppContent: React.FC = () => {
     window.location.hash = route === 'home' ? '' : route;
   };
 
-  if (loading) {
+  // Safe initialization watchdog timer ensures the app transitions from the splash screen
+  const [initTimerExpired, setInitTimerExpired] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setInitTimerExpired(true);
+    }, 1800);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const isInitializing = loading && !initTimerExpired;
+
+  if (isInitializing) {
     return (
       <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center space-y-3 font-sans-clean">
         <div className="w-12 h-12 rounded-2xl bg-[#1A1715] flex items-center justify-center shadow-md border border-amber-500/20">
@@ -85,7 +111,7 @@ const AppContent: React.FC = () => {
       <AuthPage
         initialTab={authTab}
         onNavigateHome={() => navigateToRoute('home')}
-        onSuccessRedirect={() => navigateToRoute('dashboard')}
+        onSuccessRedirect={() => navigateToRoute('home')}
       />
     );
   }
@@ -97,7 +123,7 @@ const AppContent: React.FC = () => {
         <AuthPage
           initialTab="signin"
           onNavigateHome={() => navigateToRoute('home')}
-          onSuccessRedirect={() => navigateToRoute('dashboard')}
+          onSuccessRedirect={() => navigateToRoute('home')}
         />
       );
     }
@@ -108,11 +134,10 @@ const AppContent: React.FC = () => {
   return (
     <MarketingPage
       onNavigateAuth={(tab) => {
-        if (user) {
-          navigateToRoute('dashboard');
-        } else {
-          navigateToRoute('auth', tab);
-        }
+        navigateToRoute('auth', tab);
+      }}
+      onNavigateDashboard={() => {
+        navigateToRoute('dashboard');
       }}
       onOpenQuickFeature={(feature) => {
         if (user) {
